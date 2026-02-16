@@ -23,6 +23,11 @@ export const config: Config = {
 
     NODE_ENV: requireEnv('NODE_ENV') as Config["NODE_ENV"],
     TELEGRAM_TOKEN: requireEnv('TELEGRAM_TOKEN'),
-    TELEGRAM_CHAT_ID: requireEnv('TELEGRAM_CHAT_ID')
+    TELEGRAM_CHAT_ID: parseInt(requireEnv('TELEGRAM_CHAT_ID')),
+    DB_USER: requireEnv('DB_USER'),
+    DB_PASSWORD: requireEnv('DB_PASSWORD'),
+    DB_HOST: requireEnv('DB_HOST'),
+    DB_PORT: parseInt(requireEnv('DB_PORT')),
+    DB_NAME: requireEnv('DB_NAME')
 
 }
