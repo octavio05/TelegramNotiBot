@@ -66,13 +66,16 @@ export class CouchDbAdapter implements DatabaseAdapter {
             }
         })).docs[0];
 
-        if (!data)
+        if (!data) {
             data = newData;
-        else
+        } else {
+            // Preservamos el _rev de la base de datos para evitar el conflicto 409
+            const { _rev, ...newDataWithoutRev } = newData;
             data = {
                 ...data,
-                ...newData,
+                ...newDataWithoutRev,
             };
+        }
 
         await database?.insert(data);
 

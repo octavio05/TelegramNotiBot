@@ -11,6 +11,7 @@ import { Repository } from "./interfaces/Repository";
 import { CommandHandler } from "./interfaces/commandHandler";
 import { UnknownCommandException } from "./customExceptions/unknownCommandException";
 import { DataNotFoundException } from "./customExceptions/dataNotFound";
+import { CommandHandlerResponse } from "./interfaces/commandHandlerResponse";
 
 (async () => {
 
@@ -39,52 +40,80 @@ import { DataNotFoundException } from "./customExceptions/dataNotFound";
         if (!msg.text)
             return;
 
-        let response: string = '';
+        let response: CommandHandlerResponse = { message: '' };
         try {
 
             response = await commandHandler.handleCommand(msg.text);
-            await bot.sendMessage(msg.chat.id, response, { parse_mode: 'MarkdownV2' });
+            await bot.sendMessage(msg.chat.id, response.message, { parse_mode: 'MarkdownV2', ...response.options });
+            if (response.callback)
+                executeCallback(response.callback);
 
         }
         catch (error) {
 
-            if (error instanceof UnknownCommandException) {
-
-                log.error(
-                    `[${msg.text}] Unknown command:\n` +
-                    `response message: ${response}\n` +
-                    `${(error as Error).stack}`
-                );
-                await bot.sendMessage(msg.chat.id, 'Comando desconocido');
-                return;
-
-            } else if (error instanceof DataNotFoundException) {
-
-                log.error(
-                    `[${msg.text}] Data not found:\n` +
-                    `response message: ${response}\n` +
-                    `${(error as Error).stack}`
-                );
-                await bot.sendMessage(msg.chat.id, 'No se encontraron datos');
-                return;
-
-            }
-            else {
-
-                log.error(
-                    `[${msg.text}] Unexpected error:\n` +
-                    `response message: ${response}\n` +
-                    `${(error as Error).stack}`
-                );
-                await bot.sendMessage(msg.chat.id, 'Error inesperado al ejecutar el comando');
-                return;
-
-            }
+            handleError(error, msg.text ?? '', response.message, msg.chat.id);
 
         }
 
     });
 
+    function executeCallback(callback: (callbackQuery: any) => Promise<CommandHandlerResponse>) {
 
+        bot.removeAllListeners('callback_query');
+
+        bot.on('callback_query', async (callbackQuery) => {
+
+            let responseCallback: CommandHandlerResponse = { message: '' };
+            try {
+
+                responseCallback = await callback(callbackQuery);
+                await bot.sendMessage(callbackQuery.message!.chat.id, responseCallback.message, { parse_mode: 'MarkdownV2', ...responseCallback.options });
+
+                bot.answerCallbackQuery(callbackQuery.id);
+
+            }
+            catch (error) {
+
+                handleError(error, 'CALLBACK_QUERY', responseCallback.message, callbackQuery.message!.chat.id);
+
+            }
+
+        });
+
+    }
+
+    function handleError(error: any, command: string, responseMessage: string, chatId: number) {
+
+        if (error instanceof UnknownCommandException) {
+
+            log.error(
+                `[${command}] Unknown command:\n` +
+                `response message: ${responseMessage}\n` +
+                `${(error as Error).stack}`
+            );
+            bot.sendMessage(chatId, 'Comando desconocido');
+
+        } else if (error instanceof DataNotFoundException) {
+
+            log.error(
+                `[${command}] Data not found:\n` +
+                `response message: ${responseMessage}\n` +
+                `${(error as Error).stack}`
+            );
+            bot.sendMessage(chatId, 'No se encontraron datos');
+
+        }
+        else {
+
+            log.error(
+                `[${command}] Unexpected error:\n` +
+                `response message: ${responseMessage}\n` +
+                `${(error as Error).stack}`
+            );
+            bot.sendMessage(chatId, 'Error inesperado al ejecutar el comando');
+
+        }
+
+    }
 
 })();
