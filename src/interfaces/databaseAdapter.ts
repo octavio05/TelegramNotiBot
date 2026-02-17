@@ -8,6 +8,6 @@ export interface DatabaseAdapter {
 
     // addOrUpdate(ad: Ad): Promise<void>
 
-    get(filter: any): Promise<any[]>
+    get<T = any>(filter: any): Promise<T[]>
 
 }

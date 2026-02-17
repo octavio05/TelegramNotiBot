@@ -8,7 +8,7 @@ import { DatabaseConfig } from "../interfaces/databaseConfig";
  */
 export class CouchDbAdapter implements DatabaseAdapter {
 
-    private readonly _config: DatabaseConfig | null = null;
+    private readonly _config: DatabaseConfig;
     private _connection: nano.ServerScope | null = null;
 
     /**
@@ -33,8 +33,8 @@ export class CouchDbAdapter implements DatabaseAdapter {
 
         const dbList: string[] = await this._connection.db.list();
 
-        if (!dbList.includes(this._config!.dbName))
-            await this._connection.db.create(this._config!.dbName);
+        if (!dbList.includes(this._config.dbName))
+            await this._connection.db.create(this._config.dbName);
 
     }
 
@@ -88,9 +88,9 @@ export class CouchDbAdapter implements DatabaseAdapter {
      * @returns Collection of ads
      * @throws Error if the connection is not established.
      */
-    public async get(filter: any): Promise<any[]> {
+    public async get<T>(filter: any): Promise<T[]> {
 
-        const database = this._connection?.db.use<any>(this._config!.dbName);
+        const database = this._connection?.db.use<T>(this._config.dbName);
         const ads = (await database!.find({
             selector: filter
         })).docs;
@@ -105,7 +105,7 @@ export class CouchDbAdapter implements DatabaseAdapter {
      */
     private getConnectionString(): string {
 
-        return `http://${this._config!.user}:${this._config!.password}@${this._config!.host}:${this._config!.port}`;
+        return `http://${this._config.user}:${this._config.password}@${this._config.host}:${this._config.port}`;
 
     }
 
