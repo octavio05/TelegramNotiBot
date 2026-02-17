@@ -2,6 +2,14 @@ export interface CommandHandlerResponse {
 
     message: string;
     options?: any;
-    callback?: (callbackQuery: any) => Promise<CommandHandlerResponse>;
+    callback?: CommandHandlerResponseCallback;
+    finished?: boolean;
+
+}
+
+export interface CommandHandlerResponseCallback {
+
+    eventName: string;
+    func: (callbackQuery: any) => Promise<CommandHandlerResponse>;
 
 }

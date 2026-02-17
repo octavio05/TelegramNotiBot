@@ -28,33 +28,17 @@ export class TelegramCommandHandler implements CommandHandler {
                 return await this.handleStartStop();
             case '/modificaclasereserva':
                 return await this.handleModifyBookingTraining();
+            case '/modificahorareserva':
+                return await this.handleModifyBookingTime();
             default:
                 throw new UnknownCommandException(command);
         }
 
     }
 
-    // public async handleCallback(callbackQuery: any): Promise<CommandHandlerResponse> {
-
-    //     const data = callbackQuery.data;
-
-    //     if (Object.values(Trainings).includes(data as Trainings)) {
-    //         const actualConfiguration: AutobookingConfigurationDto = await this.getActualConfiguration();
-    //         actualConfiguration.configuration.trainingName = data as Trainings;
-    //         await this._configurationRepository.addOrUpdate(actualConfiguration);
-
-    //         return {
-    //             message: this.escapeMarkdownV2(`Clase modificada correctamente por: *${actualConfiguration.configuration.trainingName}*`)
-    //         };
-    //     }
-
-    //     throw new Error(`Unhandled callback data: ${data}`);
-
-    // }
-
     private async handleConfigActual(): Promise<CommandHandlerResponse> {
 
-        const actualConfiguration: AutobookingConfigurationDto = await this.getActualConfiguration();
+        const actualConfiguration: AutobookingConfigurationDto = await this.getCurrentConfiguration();
 
         const message = `📅 Días de reserva a futuro: *${actualConfiguration.configuration.maxBookingAdvanceDays}*\n` +
             `⏰ Hora de la clase: *${actualConfiguration.configuration.classTimeRangeInit} a ${actualConfiguration.configuration.classTimeRangeEnd}*\n` +
@@ -69,7 +53,7 @@ export class TelegramCommandHandler implements CommandHandler {
 
     private async handleStartStop(): Promise<CommandHandlerResponse> {
 
-        const actualConfiguration: AutobookingConfigurationDto = await this.getActualConfiguration();
+        const actualConfiguration: AutobookingConfigurationDto = await this.getCurrentConfiguration();
 
         actualConfiguration.configuration.isActive = !actualConfiguration.configuration.isActive;
         await this._configurationRepository.addOrUpdate(actualConfiguration);
@@ -94,22 +78,56 @@ export class TelegramCommandHandler implements CommandHandler {
                     ]
                 }
             },
-            callback: async (callbackQuery: any) => {
+            callback: {
+                eventName: 'callback_query',
+                func: async (callbackQuery: any) => {
 
-                const actualConfiguration: AutobookingConfigurationDto = await this.getActualConfiguration();
-                actualConfiguration.configuration.trainingName = callbackQuery.data as Trainings;
-                await this._configurationRepository.addOrUpdate(actualConfiguration);
+                    const actualConfiguration: AutobookingConfigurationDto = await this.getCurrentConfiguration();
+                    actualConfiguration.configuration.trainingName = callbackQuery.data as Trainings;
+                    await this._configurationRepository.addOrUpdate(actualConfiguration);
 
-                return {
-                    message: this.escapeMarkdownV2(`Clase modificada correctamente por: *${actualConfiguration.configuration.trainingName}*`)
-                };
+                    return {
+                        message: this.escapeMarkdownV2(`Clase modificada correctamente por: *${actualConfiguration.configuration.trainingName}*`)
+                    };
 
+                }
             }
         };
 
     }
 
-    private async getActualConfiguration(): Promise<AutobookingConfigurationDto> {
+    private async handleModifyBookingTime(): Promise<CommandHandlerResponse> {
+
+        return {
+            message: 'Escribe la hora de la clase en formato HH:MM',
+            callback: {
+                eventName: 'message',
+                func: async (message: any) => {
+
+                    if (!message.text || !this.isValidTime(message.text))
+                        return {
+                            message: this.escapeMarkdownV2('No se ha proporcionado una hora válida. Escribe la hora de la clase en formato HH:MM'),
+                            finished: false
+                        };
+
+                    const [timeRangeInit, timeRangeEnd] = this.getTimeRange(message.text);
+
+                    const actualConfiguration: AutobookingConfigurationDto = await this.getCurrentConfiguration();
+                    actualConfiguration.configuration.classTimeRangeInit = timeRangeInit;
+                    actualConfiguration.configuration.classTimeRangeEnd = timeRangeEnd;
+                    await this._configurationRepository.addOrUpdate(actualConfiguration);
+
+                    return {
+                        message: this.escapeMarkdownV2(`Hora de la clase modificada correctamente por: *${actualConfiguration.configuration.classTimeRangeInit} a ${actualConfiguration.configuration.classTimeRangeEnd}*`)
+                    };
+
+                }
+            }
+        };
+
+    }
+
+    private async getCurrentConfiguration(): Promise<AutobookingConfigurationDto> {
 
         const actualConfiguration: AutobookingConfigurationDto | undefined = await this._configurationRepository.get();
 
@@ -125,6 +143,30 @@ export class TelegramCommandHandler implements CommandHandler {
         // Pero no queremos escapar los * que usamos para negrita.
         // Una forma simple es escapar los que dan problemas comunes.
         return text.replace(/([_\(\)~`>#\+\-=\|{}\.!])/g, '\\$1');
+    }
+
+    private isValidTime(time: string): boolean {
+
+        const regexHora24 = /^(0?\d|1\d|2[0-3]):([0-5]\d)$/;
+        return regexHora24.test(time);
+
+    }
+
+    private getTimeRange(timeRangeInit: string): [string, string] {
+
+        const [hours, minutes] = timeRangeInit.split(':');
+
+        const startHours = Number(hours);
+        let endHours = startHours + 1;
+
+        if (endHours >= 24)
+            endHours = 0;
+
+        const formattedStart = `${startHours.toString().padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+        const formattedEnd = `${endHours.toString().padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+
+        return [formattedStart, formattedEnd];
+
     }
 
 }

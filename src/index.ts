@@ -11,7 +11,7 @@ import { Repository } from "./interfaces/Repository";
 import { CommandHandler } from "./interfaces/commandHandler";
 import { UnknownCommandException } from "./customExceptions/unknownCommandException";
 import { DataNotFoundException } from "./customExceptions/dataNotFound";
-import { CommandHandlerResponse } from "./interfaces/commandHandlerResponse";
+import { CommandHandlerResponse, CommandHandlerResponseCallback } from "./interfaces/commandHandlerResponse";
 
 (async () => {
 
@@ -28,7 +28,7 @@ import { CommandHandlerResponse } from "./interfaces/commandHandlerResponse";
     const configurationRepository: Repository<AutobookingConfigurationDto> = new ConfigurationRepository(dbAdapter);
     const commandHandler: CommandHandler = new TelegramCommandHandler(configurationRepository);
 
-    bot.on("message", async (msg) => {
+    bot.onText(/^\/(.+)/, async (msg, match) => {
 
         if (msg.chat.id !== config.TELEGRAM_CHAT_ID) {
 
@@ -37,13 +37,13 @@ import { CommandHandlerResponse } from "./interfaces/commandHandlerResponse";
 
         }
 
-        if (!msg.text)
+        if (!match)
             return;
 
         let response: CommandHandlerResponse = { message: '' };
         try {
 
-            response = await commandHandler.handleCommand(msg.text);
+            response = await commandHandler.handleCommand(match.input);
             await bot.sendMessage(msg.chat.id, response.message, { parse_mode: 'MarkdownV2', ...response.options });
             if (response.callback)
                 executeCallback(response.callback);
@@ -51,34 +51,50 @@ import { CommandHandlerResponse } from "./interfaces/commandHandlerResponse";
         }
         catch (error) {
 
-            handleError(error, msg.text ?? '', response.message, msg.chat.id);
+            handleError(error, match.input, response.message, msg.chat.id);
 
         }
 
     });
 
-    function executeCallback(callback: (callbackQuery: any) => Promise<CommandHandlerResponse>) {
+    function executeCallback(callback: CommandHandlerResponseCallback) {
 
-        bot.removeAllListeners('callback_query');
+        const handler = async (msgOrQuery: any) => {
 
-        bot.on('callback_query', async (callbackQuery) => {
+            const chatId = msgOrQuery.message?.chat.id || msgOrQuery.chat?.id;
+
+            if (!chatId || chatId !== config.TELEGRAM_CHAT_ID)
+                return;
 
             let responseCallback: CommandHandlerResponse = { message: '' };
             try {
 
-                responseCallback = await callback(callbackQuery);
-                await bot.sendMessage(callbackQuery.message!.chat.id, responseCallback.message, { parse_mode: 'MarkdownV2', ...responseCallback.options });
+                responseCallback = await callback.func(msgOrQuery);
+                await bot.sendMessage(chatId, responseCallback.message, { parse_mode: 'MarkdownV2', ...responseCallback.options });
 
-                bot.answerCallbackQuery(callbackQuery.id);
+                if (callback.eventName === 'callback_query') {
+
+                    bot.answerCallbackQuery(msgOrQuery.id);
+
+                }
+
+                if (responseCallback.finished !== false) {
+
+                    bot.removeListener(callback.eventName, handler);
+
+                }
 
             }
             catch (error) {
 
-                handleError(error, 'CALLBACK_QUERY', responseCallback.message, callbackQuery.message!.chat.id);
+                handleError(error, callback.eventName, responseCallback.message, chatId);
+                bot.removeListener(callback.eventName, handler);
 
             }
 
-        });
+        };
+
+        bot.on(callback.eventName, handler);
 
     }
 
