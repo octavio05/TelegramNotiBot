@@ -22,6 +22,8 @@ export class TelegramCommandHandler implements CommandHandler {
         switch (command) {
             case '/configactual':
                 return await this.handleConfigActual();
+            case '/startstop':
+                return await this.handleStartStop();
             default:
                 throw new UnknownCommandException(command);
         }
@@ -35,7 +37,21 @@ export class TelegramCommandHandler implements CommandHandler {
         if (actualConfiguration === null || actualConfiguration === undefined)
             throw new DataNotFoundException('actual configuration not found');
 
-        return `📅 Días de reserva a futuro: *${actualConfiguration.configuration.maxBookingAdvanceDays}*\n⏰ Hora de la clase: *${actualConfiguration.configuration.classTimeRangeInit} a ${actualConfiguration.configuration.classTimeRangeEnd}*\n🏋️ Clase: *${actualConfiguration.configuration.trainingName}*`;
+        return `📅 Días de reserva a futuro: *${actualConfiguration.configuration.maxBookingAdvanceDays}*\n⏰ Hora de la clase: *${actualConfiguration.configuration.classTimeRangeInit} a ${actualConfiguration.configuration.classTimeRangeEnd}*\n🏋️ Clase: *${actualConfiguration.configuration.trainingName}*\n Estado: ${actualConfiguration.configuration.isActive ? '🟢 *Activo*' : '🔴 *Inactivo*'}`;
+
+    }
+
+    private async handleStartStop(): Promise<string> {
+
+        const actualConfiguration: AutobookingConfigurationDto | undefined = await this._configurationRepository.get();
+
+        if (actualConfiguration === null || actualConfiguration === undefined)
+            throw new DataNotFoundException('actual configuration not found');
+
+        actualConfiguration.configuration.isActive = !actualConfiguration.configuration.isActive;
+        await this._configurationRepository.addOrUpdate(actualConfiguration);
+
+        return `Estado actualizado: ${actualConfiguration.configuration.isActive ? '🟢 *Activo*' : '🔴 *Inactivo*'}`;
 
     }
 

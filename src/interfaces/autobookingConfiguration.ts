@@ -10,5 +10,6 @@ export interface AutobookingConfiguration {
     classTimeRangeInit: string;
     classTimeRangeEnd: string;
     trainingName: string;
+    isActive: boolean;
 
 }

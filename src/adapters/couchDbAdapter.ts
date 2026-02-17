@@ -1,5 +1,4 @@
 import nano from "nano";
-// import { Ad } from "../interfaces/ad";
 import { DatabaseAdapter } from "../interfaces/databaseAdapter";
 import { DatabaseConfig } from "../interfaces/databaseConfig";
 
@@ -54,33 +53,30 @@ export class CouchDbAdapter implements DatabaseAdapter {
 
     /**
      * Adds or updates an ad in the database
-     * @param newAd Ad to add or update
+     * @param newData Data to add or update
      * @throws Error if the connection is not established.
      */
-    // public async addOrUpdate(newAd: Ad): Promise<void> {
+    public async addOrUpdate(newData: any): Promise<void> {
 
-    //     const database = this._connection?.db.use<Ad>(this._config!.dbName);
-    //     let ad;
+        const database = this._connection?.db.use<any>(this._config!.dbName);
 
-    //     ad = (await database!.find({
-    //         selector: {
-    //             Id: newAd.Id,
-    //             'Portal.Type': newAd.Portal.Type
-    //         }
-    //     })).docs[0];
+        let data = (await database!.find({
+            selector: {
+                _id: newData._id,
+            }
+        })).docs[0];
 
-    //     if (!ad)
-    //         ad = newAd;
-    //     else
-    //         ad = {
-    //             ...ad,
-    //             ...newAd,
-    //             Price: [...ad.Price, ...newAd.Price]
-    //         };
+        if (!data)
+            data = newData;
+        else
+            data = {
+                ...data,
+                ...newData,
+            };
 
-    //     await database?.insert(ad);
+        await database?.insert(data);
 
-    // }
+    }
 
     /**
      * Gets ads from the database based on a filter
