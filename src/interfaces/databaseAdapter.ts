@@ -4,7 +4,7 @@ export interface DatabaseAdapter {
 
     disconnect(): Promise<void>;
 
-    addOrUpdate(newData: any): Promise<void>;
+    addOrUpdate(newData: any): Promise<any>;
 
     get<T = any>(filter: any): Promise<T[]>;
 

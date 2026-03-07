@@ -2,6 +2,6 @@ export interface Repository<T> {
 
     get(): Promise<T | undefined>;
 
-    addOrUpdate(data: T): Promise<void>;
+    addOrUpdate(data: T): Promise<T>;
 
 }

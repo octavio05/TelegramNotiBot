@@ -32,13 +32,13 @@ export class ConfigurationRepository implements Repository<AutobookingConfigurat
 
     }
 
-    public async addOrUpdate(data: AutobookingConfigurationDto): Promise<void> {
+    public async addOrUpdate(data: AutobookingConfigurationDto): Promise<AutobookingConfigurationDto> {
 
         await this._database.connect();
 
         try {
 
-            await this._database.addOrUpdate(data);
+            return await this._database.addOrUpdate(data);
 
         }
         finally {

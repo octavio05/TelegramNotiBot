@@ -12,6 +12,7 @@ import { CommandHandler } from "./interfaces/commandHandler";
 import { UnknownCommandException } from "./customExceptions/unknownCommandException";
 import { DataNotFoundException } from "./customExceptions/dataNotFound";
 import { CommandHandlerResponse, CommandHandlerResponseCallback } from "./interfaces/commandHandlerResponse";
+import { Booking } from "./models/Booking";
 
 (async () => {
 
@@ -26,7 +27,7 @@ import { CommandHandlerResponse, CommandHandlerResponseCallback } from "./interf
     };
     const dbAdapter: DatabaseAdapter = new CouchDbAdapter(dbConfig);
     const configurationRepository: Repository<AutobookingConfigurationDto> = new ConfigurationRepository(dbAdapter);
-    const commandHandler: CommandHandler = new TelegramCommandHandler(configurationRepository);
+    const commandHandler: CommandHandler = new TelegramCommandHandler(configurationRepository, new Booking(configurationRepository));
 
     bot.onText(/^\/(.+)/, async (msg, match) => {
 

@@ -5,17 +5,23 @@ import { AutobookingConfigurationDto } from "../interfaces/autobookingConfigurat
 import { CommandHandler } from "../interfaces/commandHandler";
 import { CommandHandlerResponse } from "../interfaces/commandHandlerResponse";
 import { Repository } from "../interfaces/Repository";
+import { IBooking } from "../interfaces/IBooking";
 
 export class TelegramCommandHandler implements CommandHandler {
 
     private readonly _configurationRepository: Repository<AutobookingConfigurationDto>;
+    private readonly _booking: IBooking;
 
-    constructor(configurationRepository: Repository<AutobookingConfigurationDto>) {
+    constructor(configurationRepository: Repository<AutobookingConfigurationDto>, booking: IBooking) {
 
         if (configurationRepository === null || configurationRepository === undefined)
             throw new Error('configurationRepository cannot be null or undefined');
 
+        if (booking === null || booking === undefined)
+            throw new Error('booking cannot be null or undefined');
+
         this._configurationRepository = configurationRepository;
+        this._booking = booking;
 
     }
 
@@ -38,12 +44,12 @@ export class TelegramCommandHandler implements CommandHandler {
 
     private async handleConfigActual(): Promise<CommandHandlerResponse> {
 
-        const actualConfiguration: AutobookingConfigurationDto = await this.getCurrentConfiguration();
+        const currentConfiguration: AutobookingConfigurationDto = await this._booking.getCurrentConfiguration();
 
-        const message = `📅 Días de reserva a futuro: *${actualConfiguration.configuration.maxBookingAdvanceDays}*\n` +
-            `⏰ Hora de la clase: *${actualConfiguration.configuration.classTimeRangeInit} a ${actualConfiguration.configuration.classTimeRangeEnd}*\n` +
-            `🏋️ Clase: *${actualConfiguration.configuration.trainingName}*\n` +
-            `Estado: ${actualConfiguration.configuration.isActive ? '🟢 *Activo*' : '🔴 *Inactivo*'}`;
+        const message = `📅 Días de reserva a futuro: *${currentConfiguration.configuration.maxDaysInAdvance ?? 'no definido'}*\n` +
+            `⏰ Hora de la clase: *${currentConfiguration.configuration.classTimeRangeInit} - ${currentConfiguration.configuration.classTimeRangeEnd}*\n` +
+            `🏋️ Clase: *${currentConfiguration.configuration.trainingName ?? 'no definido'}*\n` +
+            `Estado: ${currentConfiguration.configuration.isActive ? '🟢 *Activo*' : '🔴 *Inactivo*'}`;
 
         return {
             message: this.escapeMarkdownV2(message)
@@ -53,13 +59,13 @@ export class TelegramCommandHandler implements CommandHandler {
 
     private async handleStartStop(): Promise<CommandHandlerResponse> {
 
-        const actualConfiguration: AutobookingConfigurationDto = await this.getCurrentConfiguration();
+        const currentConfiguration: AutobookingConfigurationDto = await this._booking.getCurrentConfiguration();
 
-        actualConfiguration.configuration.isActive = !actualConfiguration.configuration.isActive;
-        await this._configurationRepository.addOrUpdate(actualConfiguration);
+        currentConfiguration.configuration.isActive = !currentConfiguration.configuration.isActive;
+        await this._configurationRepository.addOrUpdate(currentConfiguration);
 
         return {
-            message: this.escapeMarkdownV2(`Estado actualizado: ${actualConfiguration.configuration.isActive ? '🟢 *Activo*' : '🔴 *Inactivo*'}`)
+            message: this.escapeMarkdownV2(`Estado actualizado: ${currentConfiguration.configuration.isActive ? '🟢 *Activo*' : '🔴 *Inactivo*'}`)
         };
 
     }
@@ -82,7 +88,7 @@ export class TelegramCommandHandler implements CommandHandler {
                 eventName: 'callback_query',
                 func: async (callbackQuery: any) => {
 
-                    const actualConfiguration: AutobookingConfigurationDto = await this.getCurrentConfiguration();
+                    const actualConfiguration: AutobookingConfigurationDto = await this._booking.getCurrentConfiguration();
                     actualConfiguration.configuration.trainingName = callbackQuery.data as Trainings;
                     await this._configurationRepository.addOrUpdate(actualConfiguration);
 
@@ -112,7 +118,7 @@ export class TelegramCommandHandler implements CommandHandler {
 
                     const [timeRangeInit, timeRangeEnd] = this.getTimeRange(message.text);
 
-                    const actualConfiguration: AutobookingConfigurationDto = await this.getCurrentConfiguration();
+                    const actualConfiguration: AutobookingConfigurationDto = await this._booking.getCurrentConfiguration();
                     actualConfiguration.configuration.classTimeRangeInit = timeRangeInit;
                     actualConfiguration.configuration.classTimeRangeEnd = timeRangeEnd;
                     await this._configurationRepository.addOrUpdate(actualConfiguration);
@@ -127,16 +133,16 @@ export class TelegramCommandHandler implements CommandHandler {
 
     }
 
-    private async getCurrentConfiguration(): Promise<AutobookingConfigurationDto> {
+    // private async getCurrentConfiguration(): Promise<AutobookingConfigurationDto> {
 
-        const actualConfiguration: AutobookingConfigurationDto | undefined = await this._configurationRepository.get();
+    //     const actualConfiguration: AutobookingConfigurationDto | undefined = await this._configurationRepository.get();
 
-        if (actualConfiguration === null || actualConfiguration === undefined)
-            throw new DataNotFoundException('actual configuration not found');
+    //     if (actualConfiguration === null || actualConfiguration === undefined)
+    //         throw new DataNotFoundException('actual configuration not found');
 
-        return actualConfiguration;
+    //     return actualConfiguration;
 
-    }
+    // }
 
     private escapeMarkdownV2(text: string): string {
         // Reservados en MarkdownV2: _ * [ ] ( ) ~ ` > # + - = | { } . !

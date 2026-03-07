@@ -56,7 +56,7 @@ export class CouchDbAdapter implements DatabaseAdapter {
      * @param newData Data to add or update
      * @throws Error if the connection is not established.
      */
-    public async addOrUpdate(newData: any): Promise<void> {
+    public async addOrUpdate(newData: any): Promise<any> {
 
         const database = this._connection?.db.use<any>(this._config!.dbName);
 
@@ -77,7 +77,15 @@ export class CouchDbAdapter implements DatabaseAdapter {
             };
         }
 
-        await database?.insert(data);
+        const response = await database!.insert(data);
+
+        if (!response.ok)
+            throw new Error('Error adding or updating ad');
+
+        data._id = response.id;
+        data._rev = response.rev;
+
+        return data;
 
     }
 

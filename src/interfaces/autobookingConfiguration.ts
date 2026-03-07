@@ -1,17 +1,17 @@
 import { Trainings } from "../enums/trainings";
 
 export interface AutobookingConfigurationDto {
-    _id: string;
-    _rev: string;
+    _id?: string;
+    _rev?: string;
     configuration: AutobookingConfiguration;
 }
 
 export interface AutobookingConfiguration {
 
-    maxBookingAdvanceDays: number;
+    maxDaysInAdvance?: number;
     classTimeRangeInit: string;
     classTimeRangeEnd: string;
-    trainingName: Trainings;
+    trainingName?: Trainings;
     isActive: boolean;
 
 }
