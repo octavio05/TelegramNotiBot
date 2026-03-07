@@ -4,6 +4,7 @@ import { IBooking } from "../interfaces/IBooking";
 import { ClassTimeNotDefinedException } from "../customExceptions/classTimeNotDefined";
 import { ClassNotDefinedException } from "../customExceptions/classNotDefined";
 import { Trainings } from "../enums/trainings";
+import { InvalidUserInputException } from "../customExceptions/invalidUserInput";
 
 export class Booking implements IBooking {
 
@@ -73,9 +74,49 @@ export class Booking implements IBooking {
 
     }
 
+    public async modifyClassTime(inputTime: string): Promise<AutobookingConfigurationDto> {
+
+        if (!this.isValidTime(inputTime))
+            throw new InvalidUserInputException('Invalid time range.');
+
+        const [timeRangeInit, timeRangeEnd] = this.getTimeRange(inputTime);
+
+        const actualConfiguration: AutobookingConfigurationDto = await this.getCurrentConfiguration();
+        actualConfiguration.configuration.classTimeRangeInit = timeRangeInit;
+        actualConfiguration.configuration.classTimeRangeEnd = timeRangeEnd;
+        await this._configurationRepository.addOrUpdate(actualConfiguration);
+
+        return actualConfiguration;
+
+    }
+
     private async createDefaultConfiguration(): Promise<AutobookingConfigurationDto> {
 
         return await this._configurationRepository.addOrUpdate(this.currentConfiguration);
+
+    }
+
+    private isValidTime(time: string): boolean {
+
+        const regexHora24 = /^(0?\d|1\d|2[0-3]):([0-5]\d)$/;
+        return regexHora24.test(time);
+
+    }
+
+    private getTimeRange(timeRangeInit: string): [string, string] {
+
+        const [hours, minutes] = timeRangeInit.split(':');
+
+        const startHours = Number(hours);
+        let endHours = startHours + 1;
+
+        if (endHours >= 24)
+            endHours = 0;
+
+        const formattedStart = `${startHours.toString().padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+        const formattedEnd = `${endHours.toString().padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+
+        return [formattedStart, formattedEnd];
 
     }
 

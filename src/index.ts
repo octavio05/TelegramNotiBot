@@ -1,35 +1,19 @@
-import TelegramBot from "node-telegram-bot-api";
 import { config } from "./config";
 import { Logger } from "./logger";
-import { DatabaseConfig } from "./interfaces/databaseConfig";
-import { CouchDbAdapter } from "./adapters/couchDbAdapter";
-import { ConfigurationRepository } from "./repositories/configurationRepository";
-import { DatabaseAdapter } from "./interfaces/databaseAdapter";
-import { AutobookingConfigurationDto } from "./interfaces/autobookingConfiguration";
-import { TelegramCommandHandler } from "./models/telegramCommandHandler";
-import { Repository } from "./interfaces/Repository";
 import { CommandHandler } from "./interfaces/commandHandler";
+import { CommandHandlerResponse, CommandHandlerResponseCallback } from "./interfaces/commandHandlerResponse";
 import { UnknownCommandException } from "./customExceptions/unknownCommandException";
 import { DataNotFoundException } from "./customExceptions/dataNotFound";
-import { CommandHandlerResponse, CommandHandlerResponseCallback } from "./interfaces/commandHandlerResponse";
-import { Booking } from "./models/Booking";
 import { ClassTimeNotDefinedException } from "./customExceptions/classTimeNotDefined";
 import { ClassNotDefinedException } from "./customExceptions/classNotDefined";
+import { createCommandHandler } from "./factories/commandHandlerFactory";
+import { createTelegramBot } from "./factories/telegramBotFactory";
 
 (async () => {
 
     const log = new Logger("logs");
-    const bot = new TelegramBot(config.TELEGRAM_TOKEN, { polling: true });
-    const dbConfig: DatabaseConfig = {
-        user: config.DB_USER,
-        password: config.DB_PASSWORD,
-        host: config.DB_HOST,
-        port: config.DB_PORT,
-        dbName: config.DB_NAME
-    };
-    const dbAdapter: DatabaseAdapter = new CouchDbAdapter(dbConfig);
-    const configurationRepository: Repository<AutobookingConfigurationDto> = new ConfigurationRepository(dbAdapter);
-    const commandHandler: CommandHandler = new TelegramCommandHandler(configurationRepository, new Booking(configurationRepository));
+    const bot = createTelegramBot();
+    const commandHandler: CommandHandler = createCommandHandler();
 
     bot.onText(/^\/(.+)/, async (msg, match) => {
 

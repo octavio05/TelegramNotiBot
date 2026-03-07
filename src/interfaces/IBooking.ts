@@ -6,5 +6,6 @@ export interface IBooking {
     toggleIsActive(): Promise<AutobookingConfigurationDto>;
     getTrainings(): string[];
     modifyTraining(training: string): Promise<AutobookingConfigurationDto>;
+    modifyClassTime(inputTime: string): Promise<AutobookingConfigurationDto>;
 
 }

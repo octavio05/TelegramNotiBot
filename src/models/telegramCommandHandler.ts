@@ -1,26 +1,19 @@
-import { DataNotFoundException } from "../customExceptions/dataNotFound";
-import { Trainings } from "../enums/trainings";
 import { UnknownCommandException } from "../customExceptions/unknownCommandException";
 import { AutobookingConfigurationDto } from "../interfaces/autobookingConfiguration";
 import { CommandHandler } from "../interfaces/commandHandler";
 import { CommandHandlerResponse } from "../interfaces/commandHandlerResponse";
-import { Repository } from "../interfaces/Repository";
 import { IBooking } from "../interfaces/IBooking";
+import { InvalidUserInputException } from "../customExceptions/invalidUserInput";
 
 export class TelegramCommandHandler implements CommandHandler {
 
-    private readonly _configurationRepository: Repository<AutobookingConfigurationDto>;
     private readonly _booking: IBooking;
 
-    constructor(configurationRepository: Repository<AutobookingConfigurationDto>, booking: IBooking) {
-
-        if (configurationRepository === null || configurationRepository === undefined)
-            throw new Error('configurationRepository cannot be null or undefined');
+    constructor(booking: IBooking) {
 
         if (booking === null || booking === undefined)
             throw new Error('booking cannot be null or undefined');
 
-        this._configurationRepository = configurationRepository;
         this._booking = booking;
 
     }
@@ -102,18 +95,26 @@ export class TelegramCommandHandler implements CommandHandler {
                 eventName: 'message',
                 func: async (message: any) => {
 
-                    if (!message.text || !this.isValidTime(message.text))
-                        return {
-                            message: this.escapeMarkdownV2('No se ha proporcionado una hora válida. Escribe la hora de la clase en formato HH:MM'),
-                            finished: false
-                        };
+                    let actualConfiguration: AutobookingConfigurationDto;
+                    try {
 
-                    const [timeRangeInit, timeRangeEnd] = this.getTimeRange(message.text);
+                        actualConfiguration = await this._booking.modifyClassTime(message.text);
 
-                    const actualConfiguration: AutobookingConfigurationDto = await this._booking.getCurrentConfiguration();
-                    actualConfiguration.configuration.classTimeRangeInit = timeRangeInit;
-                    actualConfiguration.configuration.classTimeRangeEnd = timeRangeEnd;
-                    await this._configurationRepository.addOrUpdate(actualConfiguration);
+                    }
+                    catch (error) {
+
+                        if (error instanceof InvalidUserInputException) {
+
+                            return {
+                                message: this.escapeMarkdownV2('No se ha proporcionado una hora válida. Escribe la hora de la clase en formato HH:MM'),
+                                finished: false
+                            };
+
+                        }
+
+                        throw error;
+
+                    }
 
                     return {
                         message: this.escapeMarkdownV2(`Hora de la clase modificada correctamente por: *${actualConfiguration.configuration.classTimeRangeInit} a ${actualConfiguration.configuration.classTimeRangeEnd}*`)
@@ -125,45 +126,9 @@ export class TelegramCommandHandler implements CommandHandler {
 
     }
 
-    // private async getCurrentConfiguration(): Promise<AutobookingConfigurationDto> {
-
-    //     const actualConfiguration: AutobookingConfigurationDto | undefined = await this._configurationRepository.get();
-
-    //     if (actualConfiguration === null || actualConfiguration === undefined)
-    //         throw new DataNotFoundException('actual configuration not found');
-
-    //     return actualConfiguration;
-
-    // }
-
     private escapeMarkdownV2(text: string): string {
-        // Reservados en MarkdownV2: _ * [ ] ( ) ~ ` > # + - = | { } . !
-        // Pero no queremos escapar los * que usamos para negrita.
-        // Una forma simple es escapar los que dan problemas comunes.
+
         return text.replace(/([_\(\)~`>#\+\-=\|{}\.!])/g, '\\$1');
-    }
-
-    private isValidTime(time: string): boolean {
-
-        const regexHora24 = /^(0?\d|1\d|2[0-3]):([0-5]\d)$/;
-        return regexHora24.test(time);
-
-    }
-
-    private getTimeRange(timeRangeInit: string): [string, string] {
-
-        const [hours, minutes] = timeRangeInit.split(':');
-
-        const startHours = Number(hours);
-        let endHours = startHours + 1;
-
-        if (endHours >= 24)
-            endHours = 0;
-
-        const formattedStart = `${startHours.toString().padStart(2, '0')}:${minutes.padStart(2, '0')}`;
-        const formattedEnd = `${endHours.toString().padStart(2, '0')}:${minutes.padStart(2, '0')}`;
-
-        return [formattedStart, formattedEnd];
 
     }
 
