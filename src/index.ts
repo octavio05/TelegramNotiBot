@@ -13,6 +13,8 @@ import { UnknownCommandException } from "./customExceptions/unknownCommandExcept
 import { DataNotFoundException } from "./customExceptions/dataNotFound";
 import { CommandHandlerResponse, CommandHandlerResponseCallback } from "./interfaces/commandHandlerResponse";
 import { Booking } from "./models/Booking";
+import { ClassTimeNotDefinedException } from "./customExceptions/classTimeNotDefined";
+import { ClassNotDefinedException } from "./customExceptions/classNotDefined";
 
 (async () => {
 
@@ -118,6 +120,24 @@ import { Booking } from "./models/Booking";
                 `${(error as Error).stack}`
             );
             bot.sendMessage(chatId, 'No se encontraron datos');
+
+        } else if (error instanceof ClassTimeNotDefinedException) {
+
+            log.error(
+                `[${command}] Class time not defined:\n` +
+                `response message: ${responseMessage}\n` +
+                `${(error as Error).stack}`
+            );
+            bot.sendMessage(chatId, 'La hora de la clase no está definida. Modifícala usando el comando /modificahorareserva');
+
+        } else if (error instanceof ClassNotDefinedException) {
+
+            log.error(
+                `[${command}] Class not defined:\n` +
+                `response message: ${responseMessage}\n` +
+                `${(error as Error).stack}`
+            );
+            bot.sendMessage(chatId, 'La clase no está definida. Modifícala usando el comando /modificaclasereserva');
 
         }
         else {

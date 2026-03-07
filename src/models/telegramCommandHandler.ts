@@ -1,6 +1,6 @@
 import { DataNotFoundException } from "../customExceptions/dataNotFound";
-import { UnknownCommandException } from "../customExceptions/unknownCommandException";
 import { Trainings } from "../enums/trainings";
+import { UnknownCommandException } from "../customExceptions/unknownCommandException";
 import { AutobookingConfigurationDto } from "../interfaces/autobookingConfiguration";
 import { CommandHandler } from "../interfaces/commandHandler";
 import { CommandHandlerResponse } from "../interfaces/commandHandlerResponse";
@@ -59,10 +59,7 @@ export class TelegramCommandHandler implements CommandHandler {
 
     private async handleStartStop(): Promise<CommandHandlerResponse> {
 
-        const currentConfiguration: AutobookingConfigurationDto = await this._booking.getCurrentConfiguration();
-
-        currentConfiguration.configuration.isActive = !currentConfiguration.configuration.isActive;
-        await this._configurationRepository.addOrUpdate(currentConfiguration);
+        const currentConfiguration: AutobookingConfigurationDto = await this._booking.toggleIsActive();
 
         return {
             message: this.escapeMarkdownV2(`Estado actualizado: ${currentConfiguration.configuration.isActive ? '🟢 *Activo*' : '🔴 *Inactivo*'}`)
@@ -77,10 +74,7 @@ export class TelegramCommandHandler implements CommandHandler {
             options: {
                 reply_markup: {
                     inline_keyboard: [
-                        [
-                            { text: Trainings.CROSSFIT, callback_data: Trainings.CROSSFIT },
-                            { text: Trainings.HYROX, callback_data: Trainings.HYROX }
-                        ]
+                        this._booking.getTrainings().map(training => ({ text: training, callback_data: training }))
                     ]
                 }
             },
@@ -88,9 +82,7 @@ export class TelegramCommandHandler implements CommandHandler {
                 eventName: 'callback_query',
                 func: async (callbackQuery: any) => {
 
-                    const actualConfiguration: AutobookingConfigurationDto = await this._booking.getCurrentConfiguration();
-                    actualConfiguration.configuration.trainingName = callbackQuery.data as Trainings;
-                    await this._configurationRepository.addOrUpdate(actualConfiguration);
+                    const actualConfiguration: AutobookingConfigurationDto = await this._booking.modifyTraining(callbackQuery.data as string);
 
                     return {
                         message: this.escapeMarkdownV2(`Clase modificada correctamente por: *${actualConfiguration.configuration.trainingName}*`)

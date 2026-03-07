@@ -3,6 +3,8 @@ import { AutobookingConfigurationDto } from "./autobookingConfiguration";
 export interface IBooking {
 
     getCurrentConfiguration(): Promise<AutobookingConfigurationDto>;
-    isActiveToggle(): Promise<void>;
+    toggleIsActive(): Promise<AutobookingConfigurationDto>;
+    getTrainings(): string[];
+    modifyTraining(training: string): Promise<AutobookingConfigurationDto>;
 
 }
