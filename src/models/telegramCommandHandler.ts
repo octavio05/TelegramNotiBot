@@ -29,6 +29,8 @@ export class TelegramCommandHandler implements CommandHandler {
                 return await this.handleModifyBookingTraining();
             case '/modificahorareserva':
                 return await this.handleModifyBookingTime();
+            case '/modificadiasreserva':
+                return await this.handleModifyMaxDaysInAdvance();
             default:
                 throw new UnknownCommandException(command);
         }
@@ -118,6 +120,45 @@ export class TelegramCommandHandler implements CommandHandler {
 
                     return {
                         message: this.escapeMarkdownV2(`Hora de la clase modificada correctamente por: *${actualConfiguration.configuration.classTimeRangeInit} a ${actualConfiguration.configuration.classTimeRangeEnd}*`)
+                    };
+
+                }
+            }
+        };
+
+    }
+
+    private async handleModifyMaxDaysInAdvance(): Promise<CommandHandlerResponse> {
+
+        return {
+            message: 'Escribe el número de días de reserva a futuro',
+            callback: {
+                eventName: 'message',
+                func: async (message: any) => {
+
+                    let actualConfiguration: AutobookingConfigurationDto;
+                    try {
+
+                        actualConfiguration = await this._booking.modifyMaxDaysInAdvance(Number(message.text));
+
+                    }
+                    catch (error) {
+
+                        if (error instanceof InvalidUserInputException) {
+
+                            return {
+                                message: this.escapeMarkdownV2('No se ha proporcionado un número de días de reserva a futuro válido. Escribe el número de días de reserva a futuro'),
+                                finished: false
+                            };
+
+                        }
+
+                        throw error;
+
+                    }
+
+                    return {
+                        message: this.escapeMarkdownV2(`Número de días de reserva a futuro modificado correctamente por: *${actualConfiguration.configuration.maxDaysInAdvance}*`)
                     };
 
                 }

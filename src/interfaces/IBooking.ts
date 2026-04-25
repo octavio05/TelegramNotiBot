@@ -7,5 +7,6 @@ export interface IBooking {
     getTrainings(): string[];
     modifyTraining(training: string): Promise<AutobookingConfigurationDto>;
     modifyClassTime(inputTime: string): Promise<AutobookingConfigurationDto>;
+    modifyMaxDaysInAdvance(maxDaysInAdvance: number): Promise<AutobookingConfigurationDto>;
 
 }

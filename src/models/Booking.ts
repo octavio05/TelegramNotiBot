@@ -90,6 +90,19 @@ export class Booking implements IBooking {
 
     }
 
+    public async modifyMaxDaysInAdvance(maxDaysInAdvance: number): Promise<AutobookingConfigurationDto> {
+
+        if (maxDaysInAdvance < 1)
+            throw new InvalidUserInputException('Invalid maxDaysInAdvance.');
+
+        const actualConfiguration: AutobookingConfigurationDto = await this.getCurrentConfiguration();
+        actualConfiguration.configuration.maxDaysInAdvance = maxDaysInAdvance;
+        await this._configurationRepository.addOrUpdate(actualConfiguration);
+
+        return actualConfiguration;
+
+    }
+
     private async createDefaultConfiguration(): Promise<AutobookingConfigurationDto> {
 
         return await this._configurationRepository.addOrUpdate(this.currentConfiguration);
