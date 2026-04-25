@@ -1,0 +1,51 @@
+name: autobooking
+services:
+  bot-notification:
+    container_name: telegram-noti-bot
+    build:
+      context: .
+      args:
+        - NODE_ENV=${NODE_ENV}
+    shm_size: '2gb'
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
+      - TZ=${TZ}
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    depends_on:
+      - couchdb-autobookings
+    networks:
+      - network-autobookings
+
+  couchdb-autobookings:
+    image: couchdb:3
+    container_name: couchdb-autobookings
+    restart: always
+    ports:
+      - "${DB_PORT}:5984"
+    environment:
+      - COUCHDB_USER=${DB_USER}
+      - COUCHDB_PASSWORD=${DB_PASSWORD}
+      - COUCHDB_NODENAME=127.0.0.1
+      - COUCHDB_SECRET=monster
+      - TZ=${TZ}
+    volumes:
+      - couchdb_autobookings_data:/opt/couchdb/data
+    networks:
+      - network-autobookings
+
+volumes:
+  couchdb_autobookings_data:
+    name: couchdb_autobookings_data
+
+networks:
+  network-autobookings:
+    name: network-autobookings
