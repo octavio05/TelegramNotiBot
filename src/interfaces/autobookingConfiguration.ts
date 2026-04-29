@@ -1,4 +1,5 @@
 import { Trainings } from "../enums/trainings";
+import { Weekday } from "../enums/weekdays";
 
 export interface AutobookingConfigurationDto {
     _id?: string;
@@ -6,12 +7,14 @@ export interface AutobookingConfigurationDto {
     configuration: AutobookingConfiguration;
 }
 
-export interface AutobookingConfiguration {
-
-    maxDaysInAdvance?: number;
+export interface DailyTraining {
+    trainingName: Trainings;
     classTimeRangeInit: string;
     classTimeRangeEnd: string;
-    trainingName?: Trainings;
-    isActive: boolean;
+}
 
+export interface AutobookingConfiguration {
+    maxDaysInAdvance?: number;
+    isActive: boolean;
+    trainings?: Partial<Record<Weekday, DailyTraining>>;
 }

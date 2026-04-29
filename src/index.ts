@@ -32,6 +32,7 @@ import { createTelegramBot } from "./factories/telegramBotFactory";
 
             response = await commandHandler.handleCommand(match.input);
             await bot.sendMessage(msg.chat.id, response.message, { parse_mode: 'MarkdownV2', ...response.options });
+
             if (response.callback)
                 executeCallback(response.callback);
 
@@ -68,6 +69,12 @@ import { createTelegramBot } from "./factories/telegramBotFactory";
                 if (responseCallback.finished !== false) {
 
                     bot.removeListener(callback.eventName, handler);
+
+                }
+
+                if (responseCallback.callback) {
+
+                    executeCallback(responseCallback.callback);
 
                 }
 

@@ -4,6 +4,9 @@ import { CommandHandler } from "../interfaces/commandHandler";
 import { CommandHandlerResponse } from "../interfaces/commandHandlerResponse";
 import { IBooking } from "../interfaces/IBooking";
 import { InvalidUserInputException } from "../customExceptions/invalidUserInput";
+import { Weekday, WeekdayLabels } from "../enums/weekdays";
+import { Trainings } from "../enums/trainings";
+
 
 export class TelegramCommandHandler implements CommandHandler {
 
@@ -25,10 +28,8 @@ export class TelegramCommandHandler implements CommandHandler {
                 return await this.handleConfigActual();
             case '/startstop':
                 return await this.handleStartStop();
-            case '/modificaclasereserva':
-                return await this.handleModifyBookingTraining();
-            case '/modificahorareserva':
-                return await this.handleModifyBookingTime();
+            case '/modificareserva':
+                return await this.handleModifyBooking();
             case '/modificadiasreserva':
                 return await this.handleModifyMaxDaysInAdvance();
             default:
@@ -40,10 +41,14 @@ export class TelegramCommandHandler implements CommandHandler {
     private async handleConfigActual(): Promise<CommandHandlerResponse> {
 
         const currentConfiguration: AutobookingConfigurationDto = await this._booking.getCurrentConfiguration();
+        const configTrainings = currentConfiguration.configuration.trainings ?? {};
+
+        const daysWithReservations = Object.entries(configTrainings)
+            .map(([day, t]) => `  • ${WeekdayLabels[day as Weekday]}: *${t!.trainingName}* (${t!.classTimeRangeInit} - ${t!.classTimeRangeEnd})`)
+            .join('\n');
 
         const message = `📅 Días de reserva a futuro: *${currentConfiguration.configuration.maxDaysInAdvance ?? 'no definido'}*\n` +
-            `⏰ Hora de la clase: *${currentConfiguration.configuration.classTimeRangeInit} - ${currentConfiguration.configuration.classTimeRangeEnd}*\n` +
-            `🏋️ Clase: *${currentConfiguration.configuration.trainingName ?? 'no definido'}*\n` +
+            `🕒 Reservas:\n${daysWithReservations || '  (ninguna)'}\n\n` +
             `Estado: ${currentConfiguration.configuration.isActive ? '🟢 *Activo*' : '🔴 *Inactivo*'}`;
 
         return {
@@ -62,14 +67,17 @@ export class TelegramCommandHandler implements CommandHandler {
 
     }
 
-    private async handleModifyBookingTraining(): Promise<CommandHandlerResponse> {
+    private async handleModifyBooking(): Promise<CommandHandlerResponse> {
+
+        let selectedDay: Weekday;
+        let selectedTraining: Trainings;
 
         return {
-            message: 'Selecciona una opción:',
+            message: 'Selecciona un día de la semana:',
             options: {
                 reply_markup: {
                     inline_keyboard: [
-                        this._booking.getTrainings().map(training => ({ text: training, callback_data: training }))
+                        Object.values(Weekday).map(day => ({ text: WeekdayLabels[day], callback_data: day }))
                     ]
                 }
             },
@@ -77,49 +85,64 @@ export class TelegramCommandHandler implements CommandHandler {
                 eventName: 'callback_query',
                 func: async (callbackQuery: any) => {
 
-                    const actualConfiguration: AutobookingConfigurationDto = await this._booking.modifyTraining(callbackQuery.data as string);
+                    selectedDay = callbackQuery.data as Weekday;
 
                     return {
-                        message: this.escapeMarkdownV2(`Clase modificada correctamente por: *${actualConfiguration.configuration.trainingName}*`)
-                    };
+                        message: 'Selecciona una clase:',
+                        options: {
+                            reply_markup: {
+                                inline_keyboard: [
+                                    this._booking.getTrainings().map(training => ({ text: training, callback_data: training }))
+                                ]
+                            }
+                        },
+                        callback: {
+                            eventName: 'callback_query',
+                            func: async (callbackQuery: any) => {
 
-                }
-            }
-        };
+                                selectedTraining = callbackQuery.data as Trainings;
 
-    }
+                                return {
+                                    message: 'Escribe la hora de la clase en formato HH:MM',
+                                    callback: {
+                                        eventName: 'message',
+                                        func: async (message: any) => {
 
-    private async handleModifyBookingTime(): Promise<CommandHandlerResponse> {
+                                            let actualConfiguration: AutobookingConfigurationDto;
+                                            try {
 
-        return {
-            message: 'Escribe la hora de la clase en formato HH:MM',
-            callback: {
-                eventName: 'message',
-                func: async (message: any) => {
+                                                actualConfiguration = await this._booking.modifyTraining(selectedDay, selectedTraining, message.text);
 
-                    let actualConfiguration: AutobookingConfigurationDto;
-                    try {
+                                            }
+                                            catch (error) {
 
-                        actualConfiguration = await this._booking.modifyClassTime(message.text);
+                                                if (error instanceof InvalidUserInputException) {
 
-                    }
-                    catch (error) {
+                                                    return {
+                                                        message: this.escapeMarkdownV2('No se ha proporcionado una hora válida. Escribe la hora de la clase en formato HH:MM'),
+                                                        finished: false
+                                                    };
 
-                        if (error instanceof InvalidUserInputException) {
+                                                }
 
-                            return {
-                                message: this.escapeMarkdownV2('No se ha proporcionado una hora válida. Escribe la hora de la clase en formato HH:MM'),
-                                finished: false
-                            };
+                                                throw error;
 
+                                            }
+
+                                            const finalMessage = `Configuración actualizada correctamente:\n` +
+                                                `📅 Día: *${WeekdayLabels[selectedDay]}*\n` +
+                                                `🏋️ Clase: *${actualConfiguration.configuration.trainings![selectedDay]!.trainingName}*\n` +
+                                                `⏰ Hora: *${actualConfiguration.configuration.trainings![selectedDay]!.classTimeRangeInit} - ${actualConfiguration.configuration.trainings![selectedDay]!.classTimeRangeEnd}*`;
+
+                                            return {
+                                                message: this.escapeMarkdownV2(finalMessage)
+                                            };
+
+                                        }
+                                    }
+                                }
+                            }
                         }
-
-                        throw error;
-
-                    }
-
-                    return {
-                        message: this.escapeMarkdownV2(`Hora de la clase modificada correctamente por: *${actualConfiguration.configuration.classTimeRangeInit} a ${actualConfiguration.configuration.classTimeRangeEnd}*`)
                     };
 
                 }

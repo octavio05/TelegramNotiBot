@@ -1,19 +1,17 @@
-import { AutobookingConfigurationDto } from "../interfaces/autobookingConfiguration";
+import { AutobookingConfigurationDto, DailyTraining } from "../interfaces/autobookingConfiguration";
 import { Repository } from "../interfaces/Repository";
 import { IBooking } from "../interfaces/IBooking";
-import { ClassTimeNotDefinedException } from "../customExceptions/classTimeNotDefined";
-import { ClassNotDefinedException } from "../customExceptions/classNotDefined";
 import { Trainings } from "../enums/trainings";
 import { InvalidUserInputException } from "../customExceptions/invalidUserInput";
+import { Weekday } from "../enums/weekdays";
 
 export class Booking implements IBooking {
 
     public currentConfiguration: AutobookingConfigurationDto = {
         configuration: {
-            classTimeRangeInit: '',
-            classTimeRangeEnd: '',
             isActive: false,
-            maxDaysInAdvance: 1
+            maxDaysInAdvance: 1,
+            trainings: {} as Record<Weekday, DailyTraining>
         }
     };
 
@@ -42,12 +40,6 @@ export class Booking implements IBooking {
 
         const currentConfiguration: AutobookingConfigurationDto = await this.getCurrentConfiguration();
 
-        if (!currentConfiguration.configuration.classTimeRangeInit || !currentConfiguration.configuration.classTimeRangeEnd)
-            throw new ClassTimeNotDefinedException('classTimeRangeInit or classTimeRangeEnd is undefined.');
-
-        if (!currentConfiguration.configuration.trainingName)
-            throw new ClassNotDefinedException('trainingName is undefined.');
-
         currentConfiguration.configuration.isActive = !currentConfiguration.configuration.isActive;
         await this._configurationRepository.addOrUpdate(currentConfiguration);
 
@@ -61,32 +53,22 @@ export class Booking implements IBooking {
 
     }
 
-    public async modifyTraining(training: string): Promise<AutobookingConfigurationDto> {
+    public async modifyTraining(day: Weekday, trainingName: Trainings, time: string): Promise<AutobookingConfigurationDto> {
 
-        if (!Object.values(Trainings).includes(training as Trainings))
-            throw new Error(`'${training}' is not a valid training.`);
+        if (!this.isValidTime(time))
+            throw new InvalidUserInputException('Invalid time range.');
+
+        const [classTimeRangeInit, classTimeRangeEnd] = this.getTimeRange(time);
 
         const currentConfiguration: AutobookingConfigurationDto = await this.getCurrentConfiguration();
-        currentConfiguration.configuration.trainingName = training as Trainings;
+
+        if (!currentConfiguration.configuration.trainings)
+            currentConfiguration.configuration.trainings = {};
+
+        currentConfiguration.configuration.trainings[day] = { trainingName, classTimeRangeInit, classTimeRangeEnd };
         await this._configurationRepository.addOrUpdate(currentConfiguration);
 
         return currentConfiguration;
-
-    }
-
-    public async modifyClassTime(inputTime: string): Promise<AutobookingConfigurationDto> {
-
-        if (!this.isValidTime(inputTime))
-            throw new InvalidUserInputException('Invalid time range.');
-
-        const [timeRangeInit, timeRangeEnd] = this.getTimeRange(inputTime);
-
-        const actualConfiguration: AutobookingConfigurationDto = await this.getCurrentConfiguration();
-        actualConfiguration.configuration.classTimeRangeInit = timeRangeInit;
-        actualConfiguration.configuration.classTimeRangeEnd = timeRangeEnd;
-        await this._configurationRepository.addOrUpdate(actualConfiguration);
-
-        return actualConfiguration;
 
     }
 
