@@ -1,4 +1,4 @@
-# AimHarderAutoBooking
+# TelegramNotiBot
 
 ## Docker execution
 
